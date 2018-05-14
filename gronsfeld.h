@@ -23,16 +23,15 @@ void decrypt (const Alphabet& alphabet, const unsigned char* key, std::size_t ke
               char* input, std::size_t inputSize, Mode::Mode mode);
 
 
-void encrypt (const Alphabet& alphabet, const unsigned char* key, std::size_t keySize,
+void encrypt (const Alphabet& alphabet,
               std::fstream& input, std::fstream& output, Mode::Mode mode);
 
-void decrypt (const Alphabet& alphabet, const unsigned char* key, std::size_t keySize,
+void decrypt (const Alphabet& alphabet,
               std::fstream& input, std::fstream& output, Mode::Mode mode);
 
 
 Alphabet latinAlphabet ();
-Alphabet latinExtendedAlphabet ();
-Alphabet allAlphabet ();
+Alphabet loadAlphabet (std::fstream& file);
 
 } // gronsfeld
 

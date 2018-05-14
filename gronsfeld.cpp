@@ -3,6 +3,8 @@
 #include <set>
 #include <cctype>
 #include <type_traits>
+#include <memory>
+#include <cstring>
 
 namespace {
 
@@ -85,10 +87,50 @@ void fileByteShift(const gronsfeld::Alphabet &alphabet, const unsigned char *key
         char byte = 0;
         if ( !(in.read(&byte, 1)) )
             return ;
+        if (byte=='\n')
+            return ;
         if ( shifter.shift(&byte, &byte) ) {
             if ( !(out.write(&byte,1)) )
                 throw std::logic_error("error on write");
         }
+    }
+}
+
+std::pair<std::unique_ptr<unsigned char>,std::size_t> getKey (std::fstream& file) {
+    std::string key;
+    char input = 0;
+    file >> input;
+    while (input != ',' && input != '\n' && file) {
+        qDebug () << input << "\n";
+        if (!std::isdigit(input))
+            throw std::logic_error("Non digit key");
+
+        key.push_back(input - '0');
+
+        if (!(file>>input))
+            throw std::logic_error("Have key but no text");
+    }
+    if (key.empty())
+        return {nullptr, 0};
+    std::unique_ptr<unsigned char> result(new unsigned char[key.size()]);
+    std::memcpy(result.get(), key.data(), key.size());
+    qDebug() << "End:" << key.size() << "\n";
+    return std::make_pair(std::move(result), key.size());
+}
+
+void fileCrypt(const gronsfeld::Alphabet &alphabet,
+                   std::fstream& in, std::fstream& out, gronsfeld::Mode::Mode mode, ShiftFuncPtr ptr) {
+    while(true) {
+        if (!in)
+            return ;
+        auto key = getKey(in);
+        if (!key.first || !in)
+            return ;
+        for (std::size_t i = 0; i < key.second; i++)
+            out << static_cast<unsigned int>(key.first.get()[i]);
+        out << ",";
+        fileByteShift(alphabet, key.first.get(), key.second, in, out, mode, ptr);
+        out << "\n";
     }
 }
 
@@ -110,17 +152,16 @@ void decrypt(const Alphabet &alphabet, const unsigned char *key, std::size_t key
               [](unsigned x, unsigned k, unsigned m) {return (m - k + x) % m;});
 }
 
-void encrypt (const Alphabet& alphabet, const unsigned char* key, std::size_t keySize,
+void encrypt (const Alphabet& alphabet,
               std::fstream& input, std::fstream& output, Mode::Mode mode) {
-    fileByteShift(alphabet, key, keySize, input, output, mode,
+    fileCrypt(alphabet, input, output, mode,
               [](unsigned x, unsigned k, unsigned m) {return (k + x) % m;});
 }
 
-void decrypt (const Alphabet& alphabet, const unsigned char* key, std::size_t keySize,
+void decrypt (const Alphabet& alphabet,
               std::fstream& input, std::fstream& output, Mode::Mode mode) {
-    fileByteShift(alphabet, key, keySize, input, output, mode,
+    fileCrypt(alphabet, input, output, mode,
               [](unsigned x, unsigned k, unsigned m) {return (m - k + x) % m;});
-
 }
 
 Alphabet latinAlphabet()
@@ -157,34 +198,20 @@ Alphabet latinAlphabet()
     return alphabet;
 }
 
-Alphabet latinExtendedAlphabet () {
-    std::set<char> characters = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q',
-                                 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-                                 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y',
-                                 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_', '!', '?', '.', ',', ' ',
-                                 '\n', '-'};
-    Alphabet alphabet;
-    auto it = characters.begin();
-    for (std::size_t i = 0; it != characters.end(); ++it, ++i)
-        alphabet.first[*it] = i;
-    for (auto pair : alphabet.first)
-        alphabet.second[pair.second] = pair.first;
-    return alphabet;
-}
-
-Alphabet allAlphabet()
-{
-    unsigned char character = 0u;
-    char* charPtr = reinterpret_cast<char*>(&character);
-    unsigned char* uCharPtr = reinterpret_cast<unsigned char*>(&character);
-
-    Alphabet alphabet;
-    for (std::size_t i = 0u; i <= 255u; ++i) {
-        alphabet.first[*charPtr] = *uCharPtr;
-        alphabet.second[*uCharPtr] = *charPtr;
-        ++character;
+Alphabet loadAlphabet(std::fstream& file) {
+    Alphabet result;
+    char input = 0;
+    unsigned int count = 0;
+    while (file.read(&input, 1)) {
+        if (input == '\n')
+            continue;
+        result.second[count] = input;
+        count++;
     }
-    return alphabet;
+    for (auto& pair : result.second) {
+        result.first[pair.second] = pair.first;
+    }
+    return result;
 }
 
 

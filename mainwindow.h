@@ -18,8 +18,6 @@ class MainWindow : public QWidget
     QLabel* inputLabel = nullptr;
     QLabel* outputLabel = nullptr;
     QLabel* filenameLabel = nullptr;
-    QLabel* alphabetLabel = nullptr;
-    QComboBox* alphabetBox = nullptr;
     QLabel* modeLabel = nullptr;
     QComboBox* modeBox = nullptr;
     QLineEdit* keyEdit = nullptr;
@@ -31,11 +29,13 @@ class MainWindow : public QWidget
     QPushButton* decryptButton = nullptr;
     QPushButton* encryptFileButton = nullptr;
     QPushButton* decryptFileButton = nullptr;
+    QPushButton* showAlphabetButton = nullptr;
+    QPushButton* loadAlphabetButton = nullptr;
 
-    gronsfeld::Alphabet getAlphabet ();
+    gronsfeld::Alphabet alphabet;
 
     void crypt(void (*func) (const gronsfeld::Alphabet&, const unsigned char*, std::size_t, char*, std::size_t, gronsfeld::Mode::Mode));
-    void fcrypt(void (*func) (const gronsfeld::Alphabet&, const unsigned char*, std::size_t, std::fstream&, std::fstream&, gronsfeld::Mode::Mode));
+    void fcrypt(void (*func) (const gronsfeld::Alphabet&, std::fstream&, std::fstream&, gronsfeld::Mode::Mode));
 
 public:
 
@@ -49,6 +49,9 @@ public slots:
 
     void fencrypt();
     void fdecrypt();
+
+    void showAlphabet();
+    void changeAlphabet();
 };
 
 #endif // MAINWINDOW_H
